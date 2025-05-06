@@ -1,0 +1,1 @@
+python ./yolov5/train.py --device 0 --epochs 200 --data ./yolov5/data/custom_dataset_PB.yaml
