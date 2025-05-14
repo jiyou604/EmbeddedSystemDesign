@@ -3,7 +3,7 @@ import ultralytics
 from ultralytics import YOLO
 import torch
 
-model_path ='./yolov5/runs/train/exp/weights/best.pt'
+model_path ='./custom_model/PB/exp2/weights/best.pt'
 model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path)
 model.conf = 0.5
 model.eval()
