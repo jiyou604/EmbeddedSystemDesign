@@ -7,7 +7,7 @@ Download the source code of YOLOv5 and install the required dependencies accordi
 ```bash
 git clone https://github.com/ultralytics/yolov5.git
 pip install -r yolov5/requirements.txt
-````
+```
 
 ## Data Preparation
 
