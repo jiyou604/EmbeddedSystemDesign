@@ -19,7 +19,6 @@ target = (6, 6)
 map_np = np.array(matrix)
 ROWS, COLS = map_np.shape
 
-# 거리 제곱이 아니라 정수 기반 거리 사용
 def distance(node1: Node, node2: Node):
     y1, x1 = node1
     y2, x2 = node2
@@ -59,14 +58,12 @@ def path(map_np: np.ndarray, start: Node, destination: Node):
         _, current_g, current = heapq.heappop(open_set)
 
         if current == destination:
-            # 경로 재구성
             path = [current]
             while current in came_from:
                 current = came_from[current]
                 path.append(current)
             path = path[::-1]
 
-            # 시각화
             visual = map_np.astype(str)
             for y, x in path:
                 visual[y, x] = "*"
