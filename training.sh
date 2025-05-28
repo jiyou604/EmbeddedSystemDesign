@@ -1,1 +1,1 @@
-python ./yolov5/train.py --epochs 200 --data ./custom_dataset_PB/custom_dataset_PB.yaml --project ./custom_model/PB
+python ./yolov5/train.py --epochs 200 --data ./custom_dataset_PB_gray/custom_dataset_PB_gray.yaml --project ./custom_model/PB
