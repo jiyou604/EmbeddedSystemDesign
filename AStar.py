@@ -76,9 +76,9 @@ if __name__ == '__main__':
     path_dir  = './paths'
     os.makedirs(path_dir, exist_ok=True)
     
-    # just 3:4 ㅋㅋ
-    scaled_H = 300
-    scaled_W = 400
+    # just 3:4 
+    scaled_H = 30
+    scaled_W = 40
 
     for fname in os.listdir(input_dir):
         if not fname.lower().endswith(('.png', '.jpg', '.jpeg')):
@@ -91,7 +91,8 @@ if __name__ == '__main__':
             print(f"Skipping {fname}, path already exists.")
             continue
         img_path = os.path.join(input_dir, fname)
-        img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+        img = cv2.imread(img_path, 0)
+        # cv2.imwrite("test.png", img) >> 밝기 비교 후 넓은 영역에 대해 path로 인식하도록
         _, binary = cv2.threshold(img, 0, 1, cv2.THRESH_BINARY_INV|cv2.THRESH_OTSU)
         grid = binary.astype(np.uint8)
 
@@ -101,12 +102,11 @@ if __name__ == '__main__':
         ## astar code practice
         path = a_star(grid, start, goal)
         # print(path) list => clear
-        
         new_path = scale_path(path, (H, W), (scaled_H, scaled_W))
         # print(new_path) tuple => clear
-        
+
         # 480×640 grid and ‘■’ view
-        display = [[' ' for _ in range(scaled_W)] for __ in range(scaled_H)]
+        display = [['_' for _ in range(scaled_W)] for __ in range(scaled_H)]
         
         for (y2, x2) in new_path:
             display[y2][x2] = '■'
@@ -117,12 +117,16 @@ if __name__ == '__main__':
         gx2 = int(goal[1]  * scaled_W / W)   
         display[sy2][sx2] = 'S'
         display[gy2][gx2] = 'G'
-        
+
         # print(display) clear
+
         with open(path_file, 'w') as f:
-            f.write("new path:")
+            f.write("new path:\n")  # 줄바꿈 추가
             for a in display:
                 for b in a:
                     f.write(f"{b}")
+                f.write('\n')
         print(f"Saved path for {fname} → {path_file}")
         # (5.30) fail
+        # (5.31) yolo labellmg 사용
+        
