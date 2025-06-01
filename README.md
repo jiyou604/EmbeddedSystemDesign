@@ -24,6 +24,7 @@ labelImg
 ## Training
 
 Run `training.sh` to start training the model.
+When training specific model, please make sure you change "nc:" in .yaml file.
 
 ```bash
 sh training.sh

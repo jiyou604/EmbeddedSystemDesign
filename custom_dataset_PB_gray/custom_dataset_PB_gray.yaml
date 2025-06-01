@@ -14,5 +14,6 @@ val: ../custom_dataset_PB_gray/valid
 test: ../custom_dataset_PB_gray/test
 
 # Classes
+nc: 1
 names:
   0: PB
