@@ -5,7 +5,7 @@ import numpy as np
 from picamera2 import Picamera2
 
 # ONNX load
-model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_simplified_quant.onnx'
+model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_quantized.onnx'
 session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
 # Picam
