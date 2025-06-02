@@ -1,10 +1,22 @@
-from onnxruntime.quantization import quantize_dynamic, QuantType
+import onnx
+from onnxconverter_common import float16
+from onnxruntime.quantization import quantize_dynamic, QuantType, preprocess
 
-model_fp32 = "./custom_model/augmented/exp/weights/best_simplified.onnx"
-model_quant = "./custom_model/augmented/exp/weights/best_simplified_quant.onnx"
+
+fp32_model_path = "./custom_model/augmented/exp/weights/best_simplified.onnx"
+preprocessed_path = "./custom_model/augmented/exp/weights/best_preprocessed.onnx"
+fp16_model_path = "./custom_model/augmented/exp/weights/best_fp16.onnx"
+output_path="./custom_model/augmented/exp/weights/best_quantized.onnx"
+
+model = onnx.load(fp32_model_path)
+
+model_fp16 = float16.convert_float_to_float16(model)
+
+onnx.save(model_fp16, fp16_model_path)
 
 quantize_dynamic(
-    model_input=model_fp32,
-    model_output=model_quant,
-    weight_type=QuantType.QInt8  # or QuantType.QUInt8
+    model_input=fp16_model_path,
+    model_output=output_path,
+    weight_type=QuantType.QInt8,
+    op_types_to_quantize=['MatMul']  # Conv 제외
 )

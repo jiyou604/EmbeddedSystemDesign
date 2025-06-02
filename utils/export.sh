@@ -4,6 +4,7 @@
 INPUT_PATH="./custom_model/augmented/exp/weights/best.pt"
 ONNX_PATH="./custom_model/augmented/exp/weights/best.onnx"
 SIMP_PATH="./custom_model/augmented/exp/weights/best_simplified.onnx"
+TEMP_PATH="./custom_model/augmented/exp/weights/best_temp.onnx"
 OUTPUT_PATH="./custom_model/augmented/exp/weights/best_quantized.onnx"
 
 # === Step 1: Export to ONNX ===
@@ -16,11 +17,5 @@ python3 -m onnxsim "$ONNX_PATH" "$SIMP_PATH"
 
 # === Step 3: Dynamic Quantization ===
 echo "Applying dynamic quantization..."
-python3 -c "
-from onnxruntime.quantization import quantize_dynamic, QuantType
-quantize_dynamic(
-    model_input='$SIMP_PATH',
-    model_output='$OUTPUT_PATH',
-    weight_type=QuantType.QInt8
-)
-"
+python3 ./utils/quantize.py
+
