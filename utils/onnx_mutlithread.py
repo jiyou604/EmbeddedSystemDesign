@@ -11,7 +11,7 @@ model_path = '/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weigh
 session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (640, 480)})
+config = picam2.create_preview_configuration(main={"size": (480, 480)})
 picam2.configure(config)
 picam2.start()
 
@@ -20,8 +20,8 @@ result_queue = queue.Queue(maxsize=2)
 
 # 전처리 함수
 def preprocess(img):
-    img_resized = cv2.resize(img, (480, 480))
-    img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
+    # img_resized = cv2.resize(img, (480, 480))
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img_tensor = img_rgb.transpose(2, 0, 1).astype(np.float32) / 255.0
     return np.expand_dims(img_tensor, axis=0)
 
