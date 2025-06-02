@@ -15,8 +15,8 @@ config = picam2.create_preview_configuration(main={"size": (480, 480)})
 picam2.configure(config)
 picam2.start()
 
-frame_queue = queue.Queue(maxsize=2)
-result_queue = queue.Queue(maxsize=2)
+frame_queue = queue.Queue(maxsize=10)
+result_queue = queue.Queue(maxsize=10)
 
 def preprocess(img):
     # img_resized = cv2.resize(img, (480, 480))
@@ -102,7 +102,7 @@ try:
         frame = picam2.capture_array()
         if not frame_queue.full():
             frame_queue.put(frame)
-        time.sleep(0.01)
+        # time.sleep(0.01)
 except KeyboardInterrupt:
     pass
 finally:

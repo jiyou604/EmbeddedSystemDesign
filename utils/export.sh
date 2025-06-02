@@ -4,8 +4,6 @@
 INPUT_PATH="./custom_model/augmented/exp/weights/best.pt"
 ONNX_PATH="./custom_model/augmented/exp/weights/best.onnx"
 SIMP_PATH="./custom_model/augmented/exp/weights/best_simplified.onnx"
-TEMP_PATH="./custom_model/augmented/exp/weights/best_temp.onnx"
-OUTPUT_PATH="./custom_model/augmented/exp/weights/best_quantized.onnx"
 
 # === Step 1: Export to ONNX ===
 echo "Exporting yolov5 to ONNX..."
