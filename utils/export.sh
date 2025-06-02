@@ -1,5 +1,26 @@
-python ./yolov5/export.py --weights ./custom_model/augmented/exp/weights/best.pt --img 480 --include torchscript onnx
+#!/bin/bash
 
-python -m onnxsim ./custom_model/augmented/exp/weights/best.onnx ./custom_model/augmented/exp/weights/best_simplified.onnx
+#Parameters
+INPUT_PATH="./custom_model/augmented/exp/weights/best.pt"
+ONNX_PATH="./custom_model/augmented/exp/weights/best.onnx"
+SIMP_PATH="./custom_model/augmented/exp/weights/best_simplified.onnx"
+OUTPUT_PATH="./custom_model/augmented/exp/weights/best_quantized.onnx"
 
-python utils/quantize.py
+# === Step 1: Export to ONNX ===
+echo "Exporting yolov5 to ONNX..."
+python ./yolov5/export.py --weights "$INPUT_PATH" --img 480 --include torchscript onnx #--img 680
+
+# === Step 2: Simplify the model ===
+echo "Simplifying the model..."
+python3 -m onnxsim "$ONNX_PATH" "$SIMP_PATH"
+
+# === Step 3: Dynamic Quantization ===
+echo "Applying dynamic quantization..."
+python3 -c "
+from onnxruntime.quantization import quantize_dynamic, QuantType
+quantize_dynamic(
+    model_input='$SIMP_PATH',
+    model_output='$OUTPUT_PATH',
+    weight_type=QuantType.QInt8
+)
+"
