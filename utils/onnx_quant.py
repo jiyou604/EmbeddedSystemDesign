@@ -5,19 +5,31 @@ import numpy as np
 from picamera2 import Picamera2
 
 # ONNX load
-model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_quantized.onnx'
+model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_fp16.onnx'
 session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+
+
+input_name = session.get_inputs()[0].name
+expected_type = session.get_inputs()[0].type  # 'tensor(float16)' 등
 
 # Picam
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (640, 480)})
+config = picam2.create_preview_configuration(main={"size": (480, 480)})
 picam2.configure(config)
 picam2.start()
 
 def preprocess(img):
-    img_resized = cv2.resize(img, (480, 480))
+    # img_resized = cv2.resize(img, (480, 480))
     img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
     img_tensor = img_rgb.transpose(2, 0, 1).astype(np.float32) / 255.0
+
+    if "float16" in expected_type:
+        img_tensor = img_tensor.astype(np.float16)
+    else:
+        img_tensor = img_tensor.astype(np.float32)
+
+    return np.expand_dims(img_tensor, axis=0)  # (1, 3, 480, 480)
+
     return np.expand_dims(img_tensor, axis=0)
 
 def postprocess(outputs, orig_shape, conf_thresh=0.4):
