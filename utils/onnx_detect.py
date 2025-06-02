@@ -5,7 +5,8 @@ import numpy as np
 from picamera2 import Picamera2
 
 # ONNX load
-session = ort.InferenceSession('yolov5_custom.onnx', providers=['CPUExecutionProvider'])
+model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_simplified.onnx'
+session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
 # 영상 파일 로드
 picam2 = Picamera2()
