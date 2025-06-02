@@ -8,13 +8,12 @@ from picamera2 import Picamera2
 model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_simplified.onnx'
 session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
-# 영상 파일 로드
+# Picam
 picam2 = Picamera2()
 config = picam2.create_preview_configuration(main={"size": (640, 480)})
 picam2.configure(config)
 picam2.start()
 
-# 전처리 함수 (YOLOv5 포맷에 맞게 조정)
 def preprocess(img):
     img_resized = cv2.resize(img, (480, 480))
     img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)

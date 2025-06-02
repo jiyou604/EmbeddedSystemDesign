@@ -18,7 +18,6 @@ picam2.start()
 frame_queue = queue.Queue(maxsize=2)
 result_queue = queue.Queue(maxsize=2)
 
-# 전처리 함수
 def preprocess(img):
     # img_resized = cv2.resize(img, (480, 480))
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -63,7 +62,7 @@ def draw_boxes(frame, results):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
     return frame
 
-# 추론 스레드
+# Inference
 def inference_thread():
     while True:
         frame = frame_queue.get()
@@ -74,7 +73,7 @@ def inference_thread():
         results = postprocess(outputs, frame.shape)
         result_queue.put((frame, results))
 
-# 디스플레이 스레드
+# Display
 def display_thread():
     prev_time = time.time()
     while True:
@@ -92,7 +91,7 @@ def display_thread():
 
     cv2.destroyAllWindows()
 
-# 스레드 시작
+# Multithreading
 t1 = threading.Thread(target=inference_thread, daemon=True)
 t2 = threading.Thread(target=display_thread, daemon=True)
 t1.start()
