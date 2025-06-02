@@ -6,7 +6,8 @@ import queue
 import onnxruntime as ort
 from picamera2 import Picamera2
 
-
+confidence = 0.5
+IOU = 0.3
 class_names = ["PB"] 
 frame_queue = queue.Queue(maxsize=1)
 
@@ -20,9 +21,11 @@ def display_thread():
             break
     cv2.destroyAllWindows()
 
-# NMS 함수
-def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45):
+# NMS
+def non_max_suppression(prediction, conf_thres=confidence, iou_thres=IOU):
     boxes = []
+    confidences = []
+    confidences = []
     confidences = []
     class_ids = []
 
@@ -41,13 +44,12 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45):
     indices = cv2.dnn.NMSBoxes(boxes, confidences, conf_thres, iou_thres)
     results = []
     for i in indices:
-        i = i[0]
         results.append((boxes[i], confidences[i], class_ids[i]))
     return results
 
 # PiCam
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (480, 480)})
+config = picam2.create_preview_configuration(main={"size": (640, 640)})
 picam2.configure(config)
 picam2.start()
 print("PiCamera started")
@@ -66,7 +68,7 @@ thread.start()
 prev_time = time.time()
 while True:
     frame = picam2.capture_array()
-    img = cv2.resize(frame, (480, 480))
+    img = cv2.resize(frame, (640, 640))
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img_input = img_rgb.astype(np.float32) / 255.0
     img_input = np.transpose(img_input, (2, 0, 1))  # HWC → CHW
@@ -77,7 +79,7 @@ while True:
     outputs = session.run(None, {input_name: img_input})[0]
 
     # Postprocessing
-    detections = non_max_suppression(outputs, conf_thres=0.25, iou_thres=0.45)
+    detections = non_max_suppression(outputs, conf_thres=confidence, iou_thres=IOU)
 
     # Visulaization
     for box, conf, cls_id in detections:
