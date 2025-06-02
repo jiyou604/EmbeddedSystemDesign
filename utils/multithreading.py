@@ -55,7 +55,7 @@ picam2.start()
 print("PiCamera started")
 
 # ONNX load
-onnx_model_path = "./custom_model/PB/exp13/weights/best.onnx"
+onnx_model_path = "/home/pi/ESD/EmbeddedSystemDesign/best_simplified.onnx"
 session = ort.InferenceSession(onnx_model_path, providers=["CPUExecutionProvider"])
 input_name = session.get_inputs()[0].name
 print("ONNX model loaded")
