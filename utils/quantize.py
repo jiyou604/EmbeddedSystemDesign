@@ -18,5 +18,4 @@ quantize_dynamic(
     model_input=fp16_model_path,
     model_output=output_path,
     weight_type=QuantType.QInt8,
-    op_types_to_quantize=['MatMul']  # Conv 제외
 )
