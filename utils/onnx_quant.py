@@ -5,12 +5,9 @@ import numpy as np
 from picamera2 import Picamera2
 
 # ONNX load
-model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_quantized.onnx'
+model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_simplified.onnx'
 session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
-
-input_name = session.get_inputs()[0].name
-expected_type = session.get_inputs()[0].type  # 'tensor(float16)' 등
 
 # Picam
 picam2 = Picamera2()
