@@ -19,6 +19,6 @@ echo "Applying dynamic quantization..."
 echo "Preprocessing..."
 python -m onnxruntime.quantization.preprocess --input "$SIMP_PATH" --output "$PREP_PATH"
 echo "Quantizing into FP16..."
-python3 ./utils/quantize.py
+python ./utils/quantize.py
 
 echo "done"
