@@ -77,31 +77,31 @@ while True:
     frame = picam2.capture_array()
     start_time = time.time()
     input_tensor = preprocess(frame)
-    preprocess_time = time.time()-start_time
-    print(f"preprocess: {preprocess_time}")
+    preprocess_time = time.time()
+    print(f"preprocess: {preprocess_time-start_time}")
     outputs = session.run(None, {'images': input_tensor})
-    inference_time = time.time()-preprocess_time
-    print(f"inference: {inference_time}")
+    inference_time = time.time()
+    print(f"inference: {inference_time-preprocess_time}")
 
     results = postprocess(outputs, frame.shape)
-    postprocess_time = time.time()-inference_time
-    print(f"postprocess: {postprocess_time}")
+    postprocess_time = time.time()
+    print(f"postprocess: {postprocess_time-inference_time}")
     
     frame = draw_boxes(frame, results)
-    boxing_time = time.time()-postprocess_time
-    print(f"box: {boxing_time}")
+    boxing_time = time.time()
+    print(f"box: {boxing_time-postprocess_time}")
 
     current_time = time.time()
     fps = 1.0 / (current_time - prev_time)
     prev_time = current_time
 
     # print(f"FPS: {fps:.2f}")
-    cal_time = time.time()-boxing_time
-    print(f"cal: {cal_time}")
+    cal_time = time.time()
+    print(f"cal: {cal_time-boxing_time}")
 
     cv2.imshow("ONNX YOLOv5 - PiCam", frame)
-    plot_time = time.time()-cal_time
-    print(f"plot: {plot_time}")
+    plot_time = time.time()
+    print(f"plot: {plot_time-cal_time}")
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
