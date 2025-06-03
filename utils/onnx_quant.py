@@ -4,14 +4,16 @@ import onnxruntime as ort
 import numpy as np
 from picamera2 import Picamera2
 
+# parameters
+resolution = 320
+
 # ONNX load
 model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_fp16.onnx'
 session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
-
 # Picam
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (320, 320)})
+config = picam2.create_preview_configuration(main={"size": (resolution, resolution)})
 picam2.configure(config)
 picam2.start()
 
@@ -41,10 +43,10 @@ def postprocess(outputs, orig_shape, conf_thresh=0.4):
             continue
 
         cx, cy, w, h = pred[0:4]
-        x = int((cx - w/2) * orig_shape[1] / 480)
-        y = int((cy - h/2) * orig_shape[0] / 480)
-        w = int(w * orig_shape[1] / 480)
-        h = int(h * orig_shape[0] / 480)
+        x = int((cx - w/2) * orig_shape[1] / resolution)
+        y = int((cy - h/2) * orig_shape[0] / resolution)
+        w = int(w * orig_shape[1] / resolution)
+        h = int(h * orig_shape[0] / resolution)
 
         boxes.append([x, y, w, h])
         confidences.append(float(conf))
