@@ -21,13 +21,8 @@ picam2.start()
 def preprocess(img):
     # img_resized = cv2.resize(img, (480, 480))
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img_tensor = img_rgb.transpose(2, 0, 1).astype(np.float32) / 255.0
-
-    if "float16" in expected_type:
-        img_tensor = img_tensor.astype(np.float16)
-    else:
-        img_tensor = img_tensor.astype(np.float32)
-
+    img_tensor = img_rgb.transpose(2, 0, 1).astype(np.float16) / 255.0
+    
     return np.expand_dims(img_tensor, axis=0)  # (1, 3, 480, 480)
 
     return np.expand_dims(img_tensor, axis=0)
