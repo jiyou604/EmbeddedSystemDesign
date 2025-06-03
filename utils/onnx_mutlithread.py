@@ -15,8 +15,8 @@ config = picam2.create_preview_configuration(main={"size": (480, 480)})
 picam2.configure(config)
 picam2.start()
 
-frame_queue = queue.Queue(maxsize=10)
-result_queue = queue.Queue(maxsize=10)
+frame_queue = queue.Queue(maxsize=2)
+result_queue = queue.Queue(maxsize=2)
 
 def preprocess(img):
     # img_resized = cv2.resize(img, (480, 480))

@@ -5,24 +5,21 @@ import numpy as np
 from picamera2 import Picamera2
 
 # ONNX load
-model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_simplified.onnx'
+model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_fp16.onnx'
 session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
 
 # Picam
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (480, 480)})
+config = picam2.create_preview_configuration(main={"size": (320, 320)})
 picam2.configure(config)
 picam2.start()
 
 def preprocess(img):
-    # img_resized = cv2.resize(img, (480, 480))
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img_tensor = img_rgb.transpose(2, 0, 1).astype(np.float32) / 255.0
+    img_tensor = img_rgb.transpose(2, 0, 1).astype(np.float16) / 255.0
     
     return np.expand_dims(img_tensor, axis=0)  # (1, 3, 480, 480)
-
-    return np.expand_dims(img_tensor, axis=0)
 
 def postprocess(outputs, orig_shape, conf_thresh=0.4):
     boxes = []
