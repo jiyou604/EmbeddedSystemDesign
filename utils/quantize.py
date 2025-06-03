@@ -17,5 +17,5 @@ output_path="./custom_model/augmented/exp/weights/best_quantized.onnx"
 quantize_dynamic(
     model_input=preprocessed_path,
     model_output=output_path,
-    weight_type=QuantType.QInt8,
+    weight_type=QuantType.QUInt8,
 )
