@@ -18,7 +18,8 @@ picam2.configure(config)
 picam2.start()
 
 def preprocess(img):
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img_resized = cv2.resize(img, (320, 320))
+    img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
     img_tensor = img_rgb.transpose(2, 0, 1).astype(np.float16) / 255.0
     
     return np.expand_dims(img_tensor, axis=0)  # (1, 3, 480, 480)
@@ -74,12 +75,17 @@ prev_time = time.time()
 
 while True:
     frame = picam2.capture_array()
-
+    print(f"start: {time.time()}")
     input_tensor = preprocess(frame)
+    print(f"preprocess: {time.time()}")
     outputs = session.run(None, {'images': input_tensor})
+    print(f"inference: {time.time()}")
 
     results = postprocess(outputs, frame.shape)
+    print(f"inference: {time.time()}")
+
     frame = draw_boxes(frame, results)
+    print(f"postprocess: {time.time()}")
 
     current_time = time.time()
     fps = 1.0 / (current_time - prev_time)
