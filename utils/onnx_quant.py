@@ -1,8 +1,11 @@
 import cv2
 import time
+import os
 import onnxruntime as ort
 import numpy as np
 from picamera2 import Picamera2
+
+os.environ["OMP_NUM_THREADS"] = "4"
 
 # parameters
 model_size = 320
@@ -76,10 +79,7 @@ prev_time = time.time()
 
 while True:
     frame = picam2.capture_array()
-    start_time = time.time()
     input_tensor = preprocess(frame)
-    preprocess_time = time.time()
-    print(f"preprocess: {preprocess_time-start_time}")
     outputs = session.run(None, {'images': input_tensor})
     inference_time = time.time()
     print(f"inference: {inference_time-preprocess_time}")

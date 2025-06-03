@@ -1,33 +1,42 @@
 import cv2
 import time
+import os
 import onnxruntime as ort
 import numpy as np
-import threading
-import queue
 from picamera2 import Picamera2
+from concurrent.futures import ThreadPoolExecutor
+
+os.environ["OMP_NUM_THREADS"] = "4"
+
+# parameters
+model_size = 320
+resolution = 640
 
 # ONNX load
 model_path = '/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_fp16.onnx'
 session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
+# Picam
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (480, 480)})
+config = picam2.create_preview_configuration(main={"size": (resolution, resolution)})
 picam2.configure(config)
 picam2.start()
 
-frame_queue = queue.Queue(maxsize=2)
-result_queue = queue.Queue(maxsize=2)
+# Thread executor
+executor = ThreadPoolExecutor(max_workers=1)
+inference_future = None
+inference_result = None
 
 def preprocess(img):
-    # img_resized = cv2.resize(img, (480, 480))
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img_resized = cv2.resize(img, (model_size, model_size))
+    img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
     img_tensor = img_rgb.transpose(2, 0, 1).astype(np.float16) / 255.0
     return np.expand_dims(img_tensor, axis=0)
 
 def postprocess(outputs, orig_shape, conf_thresh=0.4):
     boxes, confidences, class_ids = [], [], []
+    predictions = outputs[0][0]  # (num_boxes, 85)
 
-    predictions = outputs[0][0]
     for pred in predictions:
         obj_conf = pred[4]
         if obj_conf < conf_thresh:
@@ -36,22 +45,24 @@ def postprocess(outputs, orig_shape, conf_thresh=0.4):
         class_scores = pred[5:]
         class_id = np.argmax(class_scores)
         conf = obj_conf * class_scores[class_id]
-
         if conf < conf_thresh:
             continue
 
         cx, cy, w, h = pred[0:4]
-        x = int((cx - w / 2) * orig_shape[1] / 480)
-        y = int((cy - h / 2) * orig_shape[0] / 480)
-        w = int(w * orig_shape[1] / 480)
-        h = int(h * orig_shape[0] / 480)
+        x = int((cx - w / 2) * orig_shape[1] / model_size)
+        y = int((cy - h / 2) * orig_shape[0] / model_size)
+        w = int(w * orig_shape[1] / model_size)
+        h = int(h * orig_shape[0] / model_size)
 
         boxes.append([x, y, w, h])
         confidences.append(float(conf))
         class_ids.append(int(class_id))
 
     indices = cv2.dnn.NMSBoxes(boxes, confidences, conf_thresh, 0.5)
-    return [(boxes[i], confidences[i], class_ids[i]) for i in indices]
+    result = []
+    for i in indices:
+        result.append((boxes[i], confidences[i], class_ids[i]))
+    return result
 
 def draw_boxes(frame, results):
     for (box, score, class_id) in results:
@@ -62,50 +73,47 @@ def draw_boxes(frame, results):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
     return frame
 
-# Inference
-def inference_thread():
-    while True:
-        frame = frame_queue.get()
-        if frame is None:
-            break
-        input_tensor = preprocess(frame)
-        outputs = session.run(None, {'images': input_tensor})
-        results = postprocess(outputs, frame.shape)
-        result_queue.put((frame, results))
+def async_infer(session, input_tensor):
+    return session.run(None, {'images': input_tensor})
 
-# Display
-def display_thread():
-    prev_time = time.time()
-    while True:
-        try:
-            frame, results = result_queue.get(timeout=1)
-        except queue.Empty:
-            continue
-        frame = draw_boxes(frame, results)
-        fps = 1.0 / (time.time() - prev_time)
-        prev_time = time.time()
-        print(f"FPS: {fps:.2f}")
-        cv2.imshow("ONNX YOLOv5 - PiCam", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+# FPS tracking
+prev_time = time.time()
 
-    cv2.destroyAllWindows()
+while True:
+    frame = picam2.capture_array()
+    start_time = time.time()
 
-# Multithreading
-t1 = threading.Thread(target=inference_thread, daemon=True)
-t2 = threading.Thread(target=display_thread, daemon=True)
-t1.start()
-t2.start()
+    # preprocess
+    input_tensor = preprocess(frame)
+    preprocess_time = time.time()
+    print(f"preprocess: {preprocess_time - start_time:.3f}")
 
-try:
-    while True:
-        frame = picam2.capture_array()
-        if not frame_queue.full():
-            frame_queue.put(frame)
-        # time.sleep(0.01)
-except KeyboardInterrupt:
-    pass
-finally:
-    frame_queue.put(None)
-    t1.join()
-    print("Thread stopped.")
+    # if previous inference finished, get result and start new inference
+    if inference_future is None or inference_future.done():
+        if inference_future:
+            inference_result = inference_future.result()
+        inference_future = executor.submit(async_infer, session, input_tensor)
+
+    # use last inference result (if available)
+    if inference_result:
+        results = postprocess(inference_result, frame.shape)
+    else:
+        results = []
+
+    postprocess_time = time.time()
+    print(f"postprocess: {postprocess_time - preprocess_time:.3f}")
+
+    frame = draw_boxes(frame, results)
+    draw_time = time.time()
+    print(f"box: {draw_time - postprocess_time:.3f}")
+
+    current_time = time.time()
+    fps = 1.0 / (current_time - prev_time)
+    prev_time = current_time
+    print(f"FPS: {fps:.2f}")
+
+    cv2.imshow("ONNX YOLOv5 - PiCam", frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cv2.destroyAllWindows()
