@@ -1,4 +1,4 @@
-weights: yolov5/yolov5s.pt
+weights: yolov5n.pt
 cfg: ''
 data: ./mazes/mazes.yaml
 hyp:
