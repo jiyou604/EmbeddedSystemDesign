@@ -3,7 +3,7 @@ This project implements an embedded system that controls the movement of a **par
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 - `custom_dataset_PB/` – Custom YOLO dataset for PB detection  
 - `custom_model/` – YOLOv5 training configuration and models  
