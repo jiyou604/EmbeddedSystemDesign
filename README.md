@@ -75,7 +75,7 @@ python utils/ObjectDetection.py
 Lightweight model inference using ONNXRuntime.
 
 ```bash
-python utils/onnx_infer.py
+python utils/onnx_detect.py
 ```
 
 - Higher performance (~2 FPS)
@@ -93,7 +93,7 @@ python utils/onnx_quant.py
 Implements pipeline-based multithreading for overlapping pre-processing, and post-processing on the inference.
 
 ```bash
-python onnxruntime/onnx_multithread_infer.py
+python onnxruntime/onnx_multithread.py
 ```
 - Fastest (~8 FPS)
 - Due to asynchronous threading, inference does not run on every frame, which can lead to intermittent updates.
