@@ -1,1 +1,0 @@
-python ./yolov5/train.py --epochs 20 --data ./mazes/mazes.yaml --project ./custom_model/Obstacles --weights yolov5n.pt
