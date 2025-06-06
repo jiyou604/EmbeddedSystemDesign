@@ -16,7 +16,7 @@ results = model(img)
 boxes = results.xyxy[0].cpu().numpy()  # [[x1, y1, x2, y2, conf, cls], ...]
 # bbox export
 
-# transform binary map, black :1, free :0, so we view the black dots as obstacles
+# transform binary map, black :0, free :1, so we view the black dots as obstacles
 H, W = img.shape[:2]
 grid = np.ones((H, W), dtype=np.uint8) # transporm jpg to grid map for astar approach
 
@@ -31,6 +31,7 @@ goal  = (0, W-1)
 path = a_star(grid, start, goal)
 
 out_img = img.copy()
+
 for y, x in path:
     cv2.circle(out_img, (x, y), 1, (255, 0, 0), -1)  
 cv2.circle(out_img, (start[1], start[0]), 4, (0,255,0), -1)  
@@ -39,3 +40,11 @@ cv2.imwrite('astar_yolo_path.png', out_img)
 
 # for debugging, check the binary map
 cv2.imwrite('binary_map.png', grid * 255)
+# save the path.txt
+with open("astar_path.txt", "w") as f:
+    for y, x in path:
+        f.write(f"{y},{x}\n")
+# save as numpy list
+np.savez("astar_path.npz", path=np.array(path))
+
+
