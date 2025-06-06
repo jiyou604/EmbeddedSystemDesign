@@ -7,6 +7,10 @@ model = torch.hub.load('ultralytics/yolov5', 'custom', path='custom_model/Obstac
 
 img = cv2.imread('background.jpg') # at start, PiCam picutres the map for seaching the path
 # now, not exist background.jpg
+# for debugging, check
+
+if img is None:
+    raise FileNotFoundError('background.jpg not found')
 
 results = model(img)
 boxes = results.xyxy[0].cpu().numpy()  # [[x1, y1, x2, y2, conf, cls], ...]
