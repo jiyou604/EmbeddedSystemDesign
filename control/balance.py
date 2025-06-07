@@ -5,9 +5,9 @@ import RPi.GPIO as GPIO
 from picamera2 import Picamera2
 
 
-def detect_connectors(frame, min_area=55):
-    lower_blue = np.array([50, 0, 0])   # 진한 파랑
-    upper_blue = np.array([255, 100, 100]) # 연한 파랑
+def detect_ball(frame, min_area=55):
+    lower_blue = np.array([50, 50, 50])   # 진한 파랑
+    upper_blue = np.array([255, 255, 255]) # 연한 파랑
 
     img_blur = cv2.GaussianBlur(frame, (7, 7), 0)
     mask = cv2.inRange(img_blur, lower_blue, upper_blue)
@@ -55,7 +55,7 @@ picam2.start()
 while True:
     frame = picam2.capture_array()
 
-    centers = detect_connectors(frame)
+    centers = detect_ball(frame)
 
     for (x, y) in centers:
         cv2.circle(frame, (x, y), 6, (0, 0, 255), 2)
@@ -64,9 +64,6 @@ while True:
     cv2.imshow("Connectors", frame)
 
     # [(60, 413), (336, 101)]
-
-    if centers[0][0] > 60 + threshold:
-        x_axis.tilt
 
 
 

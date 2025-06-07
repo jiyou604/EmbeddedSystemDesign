@@ -18,7 +18,7 @@ platform = Stepper.Platform([motor_x0, motor_x1, motor_y0, motor_y1])
 x_axis = Stepper.MotorPair([motor_x0, motor_x1])
 y_axis = Stepper.MotorPair([motor_y0, motor_y1])
 
-platform.tilt(0, 100)
+platform.tilt(0, 20)
 
 # for i in range(100):
 #     platform.tilt(100, 0)
