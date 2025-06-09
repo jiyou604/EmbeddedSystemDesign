@@ -125,13 +125,13 @@ def draw_boxes(frame, results):
 prev_time = time.time()
 
 try:
-    # YOLO
+    # YOLO: detect starting position of PB
     input_tensor = preprocess(frame)
     outputs = session.run(None, {'images': input_tensor})
     results = postprocess(outputs, frame.shape)
     frame = draw_boxes(frame, results)
 
-    # Astar
+    # Astar: find path to the target (target should be determined manually) 
     prev_y, prev_x = path[0]
     for y, x in path[1:]:
         dx = x - prev_x ## dx = moving step
@@ -141,27 +141,26 @@ try:
     while True:
         frame = picam2.capture_array()
 
-        # PID
+        # PID: get optimal steps to the target point
 
-        pid_position = get_position(results)
+        pid_position = get_position(results) # get position function only finds the position of ball/PB depending on the RGB values it is not pid position
+        
+        # details in control/bal.py and control/balance.py
+        # make PB to move following the path
+        # 
+        # move path[0] -> path[1] 
+        # if done, move path[1] -> path [2]
+        # if done, move path[2] -> path [3]
+        # ... and so on
+        # this might need another loop
 
-        if pid_position is not None:
-
-
+        # Control: moving the motors based on the values from PID
         x_steps = int(-x_output)
         y_steps = int(y_output)
 
         platform.tilt(x_steps, y_steps)
 
-
-        # prev_y, prev_x = y, x
-        # after PID control >> about path, next dx setting
-
-
-        # Control
-
-        # Plot
-
+        # Plot (if needed)
         current_time = time.time()
         fps = 1.0 / (current_time - prev_time)
         prev_time = current_time
