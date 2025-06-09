@@ -42,12 +42,12 @@ class PID:
         output = self.kp*error + self.ki*self.integral + self.kd*self.derivative
         self.last_error = error
         
-        if abs(error) < 50:
-            output *= 0.7
-        elif abs(error) < 20:
-            output *= 0.3
-        elif abs(error) <7:
-            output = 0
-        elif abs(error) > 250:
-            output *=1.2
+        # if abs(error) < 50:
+        #     output *= 0.7
+        # elif abs(error) < 20:
+        #     output *= 0.3
+        # elif abs(error) <7:
+        #     output = 0
+        # elif abs(error) > 250:
+        #     output *=1.2
         return output

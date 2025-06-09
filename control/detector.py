@@ -17,24 +17,24 @@ while True:
 
     blurred = cv2.GaussianBlur(frame, (7, 7), 0)
 
-    lower_rgb = np.array([0, 10, 100])   # B, G, R
-    upper_rgb = np.array([80, 150, 255])
+    lower_rgb = np.array([0, 10, 50])   # B, G, R
+    upper_rgb = np.array([30, 150, 255])
 
 
     mask = cv2.inRange(blurred, lower_rgb, upper_rgb)
 
-    frame = blurred
+    # frame = mask
 
     # 윤곽선 검출
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     for cnt in contours:
         area = cv2.contourArea(cnt)
-        if area > 300:  # 너무 작은 물체는 무시
+        if area > 370:  # 너무 작은 물체는 무시
             (x, y), radius = cv2.minEnclosingCircle(cnt)
             circle_area = np.pi * radius * radius
             circularity = area / circle_area
-            if circularity > 0.5:
+            if circularity > 0.4:
                 center = (int(x), int(y))
                 radius = int(radius)
                 cv2.circle(frame, center, radius, (0, 255, 0), 2)
