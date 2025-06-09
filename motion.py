@@ -10,7 +10,7 @@ motor_y = Stepper.motor(pins_y)
 # option 1. from pipe.py, we can read astar_path.txt or .npz(np list)
 # option 2. from pipe.py, we directly dataload 'path = a_star(~)'
 
-from pipe.py import path 
+from pipe.py import path
 
 # for saving previous location
 prev_y, prev_x = path[0]

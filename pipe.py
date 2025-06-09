@@ -1,7 +1,7 @@
 import torch
 import cv2
 import numpy as np
-from AStar import a_star
+from AStar.py import a_star
 
 model = torch.hub.load('ultralytics/yolov5', 'custom', path='custom_model/Obstacles/exp2/weights/best.pt')
 

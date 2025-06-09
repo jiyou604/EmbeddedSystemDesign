@@ -7,6 +7,8 @@ import RPi.GPIO as GPIO
 from picamera2 import Picamera2
 from control import Stepper
 from control.PID import PID
+from AStar.py import 
+from pipe.py import path 
 
 
 os.environ["OMP_NUM_THREADS"] = "4"
@@ -125,12 +127,40 @@ prev_time = time.time()
 try:
     while True:
         frame = picam2.capture_array()
+
+        # YOLO
         input_tensor = preprocess(frame)
         outputs = session.run(None, {'images': input_tensor})
-
         results = postprocess(outputs, frame.shape)
-        
         frame = draw_boxes(frame, results)
+
+        # Astar
+        prev_y, prev_x = path[0]
+        for y, x in path[1:]:
+            dx = x - prev_x ## dx = moving step
+            dy = y - prev_y
+
+
+        # PID
+
+        pid_position = get_position(results)
+
+        if pid_position is not None:
+
+
+        x_steps = int(-x_output)
+        y_steps = int(y_output)
+
+        platform.tilt(x_steps, y_steps)
+
+
+        # prev_y, prev_x = y, x
+        # after PID control >> about path, next dx setting
+
+
+        # Control
+
+        # Plot
 
         current_time = time.time()
         fps = 1.0 / (current_time - prev_time)
