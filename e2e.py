@@ -7,7 +7,7 @@ import RPi.GPIO as GPIO
 from picamera2 import Picamera2
 from control import Stepper
 from control.PID import PID
-from AStar.py import 
+from Astar.py import Pathfinder
 from pipe.py import path 
 
 
@@ -125,21 +125,21 @@ def draw_boxes(frame, results):
 prev_time = time.time()
 
 try:
+    # YOLO
+    input_tensor = preprocess(frame)
+    outputs = session.run(None, {'images': input_tensor})
+    results = postprocess(outputs, frame.shape)
+    frame = draw_boxes(frame, results)
+
+    # Astar
+    prev_y, prev_x = path[0]
+    for y, x in path[1:]:
+        dx = x - prev_x ## dx = moving step
+        dy = y - prev_y
+
+
     while True:
         frame = picam2.capture_array()
-
-        # YOLO
-        input_tensor = preprocess(frame)
-        outputs = session.run(None, {'images': input_tensor})
-        results = postprocess(outputs, frame.shape)
-        frame = draw_boxes(frame, results)
-
-        # Astar
-        prev_y, prev_x = path[0]
-        for y, x in path[1:]:
-            dx = x - prev_x ## dx = moving step
-            dy = y - prev_y
-
 
         # PID
 

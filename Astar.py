@@ -5,7 +5,7 @@ from typing import Tuple, List, Dict
 
 Node = Tuple[int, int]
 
-class AStarPathfinder:
+class Pathfinder:
     def __init__(
         self,
         image: np.ndarray,              # Grayscale image
