@@ -3,23 +3,70 @@ import time
 import os
 import onnxruntime as ort
 import numpy as np
+import RPi.GPIO as GPIO
 from picamera2 import Picamera2
+from control import Stepper
+from control.PID import PID
+
 
 os.environ["OMP_NUM_THREADS"] = "4"
-
-# parameters
-model_size = 320
-resolution = 640
 
 # ONNX load
 model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_fp16.onnx'
 session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 
+# parameters
+model_size = 320
+resolution = 640
+destination = [0, 0]
+Kp, Ki, Kd = [0.09, 0.0, 0.11]
+# Kp, Ki, Kd = [0.09, 0.0, 0.11]
+# Kp, Ki, Kd = [0.033, 0.0, 0.08]
+max_rotation = 1000
+toggle_threshold = 10
+
+pid_x = PID(kp=Kp, ki=Ki, kd=Kd)
+pid_y = PID(kp=Kp, ki=Ki, kd=Kd)
+
+# motor classes
+GPIO.setmode(GPIO.BCM)
+motor_x0 = Stepper.Motor([14, 15, 17, 18], max_step=max_rotation)
+motor_x1 = Stepper.Motor([27, 22, 23, 24], max_step=max_rotation)
+motor_y0 = Stepper.Motor([10, 9, 25, 11], max_step=max_rotation)
+motor_y1 = Stepper.Motor([16, 26, 20, 21], max_step=max_rotation)
+
+platform = Stepper.Platform([motor_x0, motor_x1, motor_y0, motor_y1])
+
 # Picam
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (resolution, resolution)})
-picam2.configure(config)
+picam2.preview_configuration.main.size = (resolution, resolution)
+picam2.preview_configuration.main.format = "RGB888"
+picam2.preview_configuration.align()
+picam2.configure("preview")
 picam2.start()
+
+def get_position(frame):
+    blurred = cv2.GaussianBlur(frame, (15, 15), 0)
+
+    lower_rgb = np.array([0, 50, 100])
+    upper_rgb = np.array([80, 150, 255])
+
+    mask = cv2.inRange(blurred, lower_rgb, upper_rgb)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area > 300:
+            (x, y), radius = cv2.minEnclosingCircle(cnt)
+            circle_area = np.pi * radius * radius
+            circularity = area / circle_area
+            if circularity > 0.45:
+                center = (int(x), int(y))
+                radius = int(radius)
+                return center, radius
+
+    return None
 
 def preprocess(img):
     img_resized = cv2.resize(img, (model_size, model_size))
@@ -64,7 +111,6 @@ def postprocess(outputs, orig_shape, conf_thresh=0.4):
         result.append((boxes[i], confidences[i], class_ids[i]))
     return result
 
-
 def draw_boxes(frame, results):
     for (box, score, class_id) in results:
         x, y, w, h = box
@@ -74,39 +120,32 @@ def draw_boxes(frame, results):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
     return frame
 
-
 prev_time = time.time()
 
-while True:
-    frame = picam2.capture_array()
-    input_tensor = preprocess(frame)
-    outputs = session.run(None, {'images': input_tensor})
-    inference_time = time.time()
-    print(f"inference: {inference_time-preprocess_time}")
+try:
+    while True:
+        frame = picam2.capture_array()
+        input_tensor = preprocess(frame)
+        outputs = session.run(None, {'images': input_tensor})
 
-    results = postprocess(outputs, frame.shape)
-    postprocess_time = time.time()
-    print(f"postprocess: {postprocess_time-inference_time}")
-    
-    frame = draw_boxes(frame, results)
-    boxing_time = time.time()
-    print(f"box: {boxing_time-postprocess_time}")
+        results = postprocess(outputs, frame.shape)
+        
+        frame = draw_boxes(frame, results)
 
-    current_time = time.time()
-    fps = 1.0 / (current_time - prev_time)
-    prev_time = current_time
+        current_time = time.time()
+        fps = 1.0 / (current_time - prev_time)
+        prev_time = current_time
 
-    # print(f"FPS: {fps:.2f}")
-    cal_time = time.time()
-    print(f"cal: {cal_time-boxing_time}")
+        print(f"FPS: {fps:.2f}")
 
-    cv2.imshow("ONNX YOLOv5 - PiCam", frame)
-    plot_time = time.time()
-    print(f"plot: {plot_time-cal_time}")
+        cv2.imshow("ONNX YOLOv5 - PiCam", frame)
+        plot_time = time.time()
+        print(f"plot: {plot_time-cal_time}")
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
-
-video.release()
-cv2.destroyAllWindows()
+except KeyboardInterrupt:
+    picam2.stop()
+    cv2.destroyAllWindows()
+    platform.cleanup()

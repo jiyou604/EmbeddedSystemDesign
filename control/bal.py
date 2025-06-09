@@ -42,6 +42,7 @@ picam2.start()
 center_x = 320
 center_y = 320
 Kp, Ki, Kd = [0.09, 0.0, 0.11]
+# Kp, Ki, Kd = [0.09, 0.0, 0.11]
 # Kp, Ki, Kd = [0.033, 0.0, 0.08]
 max_rotation = 1000
 toggle_threshold = 10
