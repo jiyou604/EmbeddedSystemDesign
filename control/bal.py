@@ -1,4 +1,4 @@
-from pid import PID
+from PID import PID
 import Stepper
 
 from picamera2 import Picamera2
@@ -39,31 +39,25 @@ picam2.configure("preview")
 picam2.start()
 
 # parameters
-WIDTH, HEIGHT = 640, 640
-center_x, center_y = WIDTH // 2, HEIGHT // 2
-# Kp, Ki, Kd = [0.03, 0.0004, 0.06]
-# Kp, Ki, Kd = [0.05, 0.0, 0.08]
-Kp, Ki, Kd = [0.033, 0.0, 0.078]
-
-Deadband = 0
-toggle_threshold = 4
-max_step = 50 # max step per control
+center_x = 320
+center_y = 320
+Kp, Ki, Kd = [0.09, 0.0, 0.11]
+# Kp, Ki, Kd = [0.033, 0.0, 0.08]
+max_rotation = 1000
+toggle_threshold = 10
 
 # PID
-pid_x = PID(kp=Kp, ki=Ki, kd=Kd, threshold=Deadband, setpoint=center_x)
-pid_y = PID(kp=Kp, ki=Ki, kd=Kd, threshold=Deadband, setpoint=center_y)
+pid_x = PID(kp=Kp, ki=Ki, kd=Kd)
+pid_y = PID(kp=Kp, ki=Ki, kd=Kd)
 
 # motor classes
 GPIO.setmode(GPIO.BCM)
-motor_x0 = Stepper.Motor([14, 15, 17, 18], max_step=max_step)
-motor_x1 = Stepper.Motor([27, 22, 23, 24], max_step=max_step)
-motor_y0 = Stepper.Motor([10, 9, 25, 11], max_step=max_step)
-motor_y1 = Stepper.Motor([16, 26, 20, 21], max_step=max_step)
+motor_x0 = Stepper.Motor([14, 15, 17, 18], max_step=max_rotation)
+motor_x1 = Stepper.Motor([27, 22, 23, 24], max_step=max_rotation)
+motor_y0 = Stepper.Motor([10, 9, 25, 11], max_step=max_rotation)
+motor_y1 = Stepper.Motor([16, 26, 20, 21], max_step=max_rotation)
 
 platform = Stepper.Platform([motor_x0, motor_x1, motor_y0, motor_y1])
-
-pid_sum_x = 0.0
-pid_sum_y = 0.0
 
 last_steps = [0, 0]
 
@@ -74,32 +68,23 @@ try:
 
         if output is not None:
             center, radius = output
+            error = [center_x - center[0], center_y - center[1]]
 
             print(center)
-            x_output = pid_x.compute(center[0])
-            y_output = pid_y.compute(center[1])       
+            x_output = pid_x.compute(center_x - center[0])
+            y_output = pid_y.compute(center_y - center[1])       
 
             x_steps = int(-x_output)
             y_steps = int(y_output)
 
-            # if abs(x_output) > 5:
-            #     x_steps = int(-x_output)
-            # else:
-            #     x_steps = 1 if x_output > 0 else -1 if x_output < 0 else 0
-
-            # if abs(y_output) > 5:
-            #     y_steps = int(y_output)
-            # else:
-            #     y_steps = 1 if y_output > 0 else -1 if y_output < 0 else 0
-
             # platform.tilt(x_steps, y_steps)
 
             # toggle mode
-            if x_steps < toggle_threshold:
+            if error[0] < toggle_threshold:
                 toggle_mode_x = True
             else:
                 toggle_mode_x = False
-            if y_steps < toggle_threshold:
+            if error[1] < toggle_threshold:
                 toggle_mode_y = True
             else:
                 toggle_mode_y = False

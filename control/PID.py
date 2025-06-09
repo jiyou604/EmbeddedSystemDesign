@@ -1,28 +1,53 @@
-import Stepper
-import RPi.GPIO as GPIO
+import time
 
-# initialization
-GPIO.setmode(GPIO.BCM)
-pins_x0 = [14, 15, 17, 18]
-pins_x1 = [27, 22, 23, 24]
-pins_y0 = [10, 9, 25, 11]
-pins_y1 = [16, 26, 20, 21]
+class PID:
+    def __init__(self, kp, ki, kd):
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.last_error = 0
+        self.integral = 0
+        self.derivative = 0
+        self.dt = 0
+        self.last_time = 0
 
-motor_x0 = Stepper.Motor(pins_x0)
-motor_x1 = Stepper.Motor(pins_x1)
-motor_y0 = Stepper.Motor(pins_y0)
-motor_y1 = Stepper.Motor(pins_y1)
+    def compute(self, error):
+        current_time = time.time()
+        self.dt = current_time - self.last_time
+        self.last_time = current_time
 
-platform = Stepper.Platform([motor_x0, motor_x1, motor_y0, motor_y1])
+        self.integral += error
+        self.derivative = (error - self.last_error)//self.dt
 
-x_axis = Stepper.MotorPair([motor_x0, motor_x1])
-y_axis = Stepper.MotorPair([motor_y0, motor_y1])
+        # if abs(error) < 50:
+        #     kp = 0.6*self.kp
+        # elif abs(error) < 20:
+        #     kp = 0.3*self.kp
+        # elif abs(error) <7:
+        #     kp = 0
+        # else:
+        #     kp = self.kp
 
-platform.tilt(0, 20)
+        # if abs(self.derivative) > 600:
+        #     kd = 1e-2*self.kd
+        # elif abs(self.derivative) > 300:
+        #     kd = 0.3*self.kd
+        # elif abs(self.derivative) > 150:
+        #     kd = 0.75*self.kd
+        # elif abs(self.derivative) < 30:
+        #     kd = 0
+        # else:
+        #     kd = self.kd
 
-# for i in range(100):
-#     platform.tilt(100, 0)
-#     platform.tilt(0, 100)
-#     platform.tilt(-100, 0)
-#     platform.tilt(0, -100)
-    
+        output = self.kp*error + self.ki*self.integral + self.kd*self.derivative
+        self.last_error = error
+        
+        if abs(error) < 50:
+            output *= 0.7
+        elif abs(error) < 20:
+            output *= 0.3
+        elif abs(error) <7:
+            output = 0
+        elif abs(error) > 250:
+            output *=1.2
+        return output
