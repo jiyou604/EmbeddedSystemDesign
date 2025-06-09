@@ -111,38 +111,39 @@ def postprocess(outputs, orig_shape, conf_thresh=0.4):
         result.append((boxes[i], confidences[i], class_ids[i]))
     return result
 
-def draw_boxes(frame, results):
-    for (box, score, class_id) in results:
-        x, y, w, h = box
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-        label = f"ID:{class_id} {score:.2f}"
-        cv2.putText(frame, label, (x, y-10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)       
-        pb_start_y = x+w//2
-        pb_start_x = y+h//2 
-    return frame, pb_start_y, pb_start_x
+def draw_boxes_and_center(frame, results):
+    if not results:
+        return frame, None, None
+    box, score, class_id = results[0]
+    x, y, w, h = box
+    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+    label = f"ID:{class_id} {score:.2f}"
+    cv2.putText(frame, label, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+    center_x = x + w // 2
+    center_y = y + h // 2
+    return frame, center_x, center_y
 
 prev_time = time.time()
 
 try:
-    fframe = picam2.capture_array() ## == first frame
+    fframe = picam2.capture_array()
 
-    # YOLO: detect starting position of PB
     input_tensor = preprocess(fframe)
     outputs = session.run(None, {'images': input_tensor})
     results = postprocess(outputs, fframe.shape)
 
-    gray_img = cv2.cvtColor(fframe, cv2.COLOR_BGR2GRAY) ## directly return in e2e.py
+    fframe, pb_start_x, pb_start_y = draw_boxes_and_center(fframe, results)
 
+    gray_img = cv2.cvtColor(fframe, cv2.COLOR_BGR2GRAY)
     H, W = gray_img.shape[:2]
     grid = np.ones((H, W), dtype=np.uint8)
-    
-    fframe, pb_start_y, pb_start_x = draw_boxes(fframe, results)
-    grid[y:y+h, x:x+w] = 0
+    for (box, _, _) in results:
+        x, y, w, h = box
+        grid[y:y+h, x:x+w] = 0
     ## in gird, we mask 0 as obstacles (=dots)
     
-    start = (pb_start_y, pb_start_x)    
-    goal = (0, grid.shape[1] - 1)
+    start = (pb_start_y, pb_start_x)
+    goal = (0, grid.shape[1]-1)
     # Astar: find path to the target (target should be determined manually)
 
     finder = Pathfinder(grid, start, goal)
@@ -151,12 +152,14 @@ try:
     current_node = 0
 
     while current_node < len(path):
+        cal_time = time.time()
+
         frame = picam2.capture_array()
         
         input_tensor = preprocess(frame)
         outputs = session.run(None, {'images': input_tensor})
         results = postprocess(outputs, frame.shape)
-        frame, pb_start_y, pb_start_x = draw_boxes(frame, results)
+        frame, curr_x, curr_y = draw_boxes_and_center(frame, results)
         
         if len(results) == 0:
             ## not detect PB
@@ -169,8 +172,11 @@ try:
         pid_x.setpoint = target_x
         pid_y.setpoint = target_y
 
-        x_output = pid_x.compute(pb_start_x)
-        y_output = pid_y.compute(pb_start_y)
+        x_output = pid_x.compute(curr_x)
+        y_output = pid_y.compute(curr_y)
+        x_steps = int(-x_output)
+        y_steps = int(y_output)
+        platform.tilt(x_steps, y_steps)
         
         pid_position = get_position(results) # get position function only finds the position of ball/PB depending on the RGB values it is not pid position
         
@@ -184,14 +190,11 @@ try:
         # this might need another loop
 
         # Control: moving the motors based on the values from PID
-        x_steps = int(-x_output)
-        y_steps = int(y_output)
-        platform.tilt(x_steps, y_steps)
-        
-        dist = ((pb_start_x - target_x)**2 + (pb_start_y - target_y)**2)**0.5
+        dist = ((curr_x - target_x)**2 + (curr_y - target_y)**2) ** 0.5
         if dist < 10:
             current_node += 1
-            print(f"Reach node {current_node}, moving to next...")
+            print(f"Reach node {current_node}/{len(path)}")
+
 
         # Plot (if needed)
         current_time = time.time()
@@ -202,6 +205,7 @@ try:
 
         cv2.imshow("ONNX YOLOv5 - PiCam", frame)
         plot_time = time.time()
+        cal_time = plot_time() - cal_time
         print(f"plot: {plot_time-cal_time}")
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
