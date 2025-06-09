@@ -89,7 +89,7 @@ gray_img = cv2.imread("./mazes/1881481-800175472.png", cv2.IMREAD_GRAYSCALE)
 start_pixel = (100, 150)
 goal_pixel = (500, 600)
 
-finder = AStarPathfinder(gray_img, start=start_pixel, goal=goal_pixel, threshold=50)
+finder = Pathfinder(gray_img, start=start_pixel, goal=goal_pixel, threshold=50)
 
 path = finder.get_path()
 finder.print_path(path)

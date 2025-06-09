@@ -8,8 +8,6 @@ from picamera2 import Picamera2
 from control import Stepper
 from control.PID import PID
 from Astar.py import Pathfinder
-from pipe.py import path 
-
 
 os.environ["OMP_NUM_THREADS"] = "4"
 
@@ -119,30 +117,61 @@ def draw_boxes(frame, results):
         cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
         label = f"ID:{class_id} {score:.2f}"
         cv2.putText(frame, label, (x, y-10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-    return frame
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)       
+        pb_start_y = x+w//2
+        pb_start_x = y+h//2 
+    return frame, pb_start_y, pb_start_x
 
 prev_time = time.time()
 
 try:
+    fframe = picam2.capture_array() ## == first frame
+
     # YOLO: detect starting position of PB
-    input_tensor = preprocess(frame)
+    input_tensor = preprocess(fframe)
     outputs = session.run(None, {'images': input_tensor})
-    results = postprocess(outputs, frame.shape)
-    frame = draw_boxes(frame, results)
+    results = postprocess(outputs, fframe.shape)
 
-    # Astar: find path to the target (target should be determined manually) 
-    prev_y, prev_x = path[0]
-    for y, x in path[1:]:
-        dx = x - prev_x ## dx = moving step
-        dy = y - prev_y
+    gray_img = cv2.cvtColor(fframe, cv2.COLOR_BGR2GRAY) ## directly return in e2e.py
 
+    H, W = gray_img.shape[:2]
+    grid = np.ones((H, W), dtype=np.uint8)
+    
+    fframe, pb_start_y, pb_start_x = draw_boxes(fframe, results)
+    grid[y:y+h, x:x+w] = 0
+    ## in gird, we mask 0 as obstacles (=dots)
+    
+    start = (pb_start_y, pb_start_x)    
+    goal = (0, grid.shape[1] - 1)
+    # Astar: find path to the target (target should be determined manually)
 
-    while True:
+    finder = Pathfinder(grid, start, goal)
+    path = finder.get_path()
+    ## after find path, node setting = 0
+    current_node = 0
+
+    while current_node < len(path):
         frame = picam2.capture_array()
+        
+        input_tensor = preprocess(frame)
+        outputs = session.run(None, {'images': input_tensor})
+        results = postprocess(outputs, frame.shape)
+        frame, pb_start_y, pb_start_x = draw_boxes(frame, results)
+        
+        if len(results) == 0:
+            ## not detect PB
+            print("not PB")
+            continue
+
+        target_y, target_x = path[current_node]
 
         # PID: get optimal steps to the target point
+        pid_x.setpoint = target_x
+        pid_y.setpoint = target_y
 
+        x_output = pid_x.compute(pb_start_x)
+        y_output = pid_y.compute(pb_start_y)
+        
         pid_position = get_position(results) # get position function only finds the position of ball/PB depending on the RGB values it is not pid position
         
         # details in control/bal.py and control/balance.py
@@ -157,8 +186,12 @@ try:
         # Control: moving the motors based on the values from PID
         x_steps = int(-x_output)
         y_steps = int(y_output)
-
         platform.tilt(x_steps, y_steps)
+        
+        dist = ((pb_start_x - target_x)**2 + (pb_start_y - target_y)**2)**0.5
+        if dist < 10:
+            current_node += 1
+            print(f"Reach node {current_node}, moving to next...")
 
         # Plot (if needed)
         current_time = time.time()
