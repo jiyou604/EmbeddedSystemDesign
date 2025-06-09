@@ -39,13 +39,14 @@ picam2.configure("preview")
 picam2.start()
 
 # parameters
-center_x = 379
-center_y = 270
-Kp, Ki, Kd = [0.01, 0.0, 0.081]
-# Kp, Ki, Kd = [0.033, 0.0, 0.0]
+center_x = 320
+center_y = 320
+# Kp, Ki, Kd = [0.0, 0.0, 0.070]
+
+Kp, Ki, Kd = [0.0359, 0.00001, 0.071]
 # Kp, Ki, Kd = [0.09, 0.0, 0.11]
 # Kp, Ki, Kd = [0.033, 0.0, 0.08]
-max_rotation = 1000
+max_rotation = 60
 toggle_threshold = 3
 
 # PID
