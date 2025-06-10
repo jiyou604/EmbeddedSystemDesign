@@ -8,12 +8,6 @@ from picamera2 import Picamera2
 from control import Stepper
 from control.PID import PID
 from Astar import Pathfinder
-import heapq
-from typing import Tuple, List
-
-Node = Tuple[int, int]
-# from pipe import path 
-
 
 os.environ["OMP_NUM_THREADS"] = "4"
 
@@ -25,7 +19,8 @@ session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
 model_size = 320
 resolution = 640
 destination = [0, 0]
-Kp, Ki, Kd = [0.09, 0.0, 0.11]
+Kp, Ki, Kd = [0.25, 0.0, 0.7]
+# Kp, Ki, Kd = [0.09, 0.0, 0.11]
 # Kp, Ki, Kd = [0.09, 0.0, 0.11]
 # Kp, Ki, Kd = [0.033, 0.0, 0.08]
 max_rotation = 1000
@@ -50,59 +45,6 @@ picam2.preview_configuration.main.format = "RGB888"
 picam2.preview_configuration.align()
 picam2.configure("preview")
 picam2.start()
-
-class Pathfinder:
-    def __init__(
-        self,
-        image: np.ndarray,              # Grayscale image
-        start: Node,
-        goal: Node,
-        threshold: int = 50             # 픽셀 값이 이보다 작으면 장애물
-    ):
-        assert len(image.shape) == 2, "입력은 grayscale 이미지여야 합니다."
-        self.map_np = (image >= threshold).astype(np.uint8)  # 밝으면 1, 어두우면 0
-
-        self.ROWS, self.COLS = self.map_np.shape
-        self.start = start
-        self.goal = goal
-
-    def heuristic(self, a: Node, b: Node) -> int:
-        return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
-
-    def get_neighbors(self, pos: Node) -> List[Node]:
-        neighbors = []
-        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # 4방향
-            nx, ny = pos[0] + dx, pos[1] + dy
-            if 0 <= nx < self.ROWS and 0 <= ny < self.COLS and self.map_np[nx, ny] == 1:
-                neighbors.append((nx, ny))
-        return neighbors
-
-    def get_path(self) -> List[Node]:
-        open_set = []
-        heapq.heappush(open_set, (self.heuristic(self.start, self.goal), 0, self.start))
-
-        came_from: Dict[Node, Node] = {}
-        g_score = {self.start: 0}
-
-        while open_set:
-            _, current_g, current = heapq.heappop(open_set)
-
-            if current == self.goal:
-                path = [current]
-                while current in came_from:
-                    current = came_from[current]
-                    path.append(current)
-                return path[::-1]
-
-            for neighbor in self.get_neighbors(current):
-                tentative_g = current_g + 1
-                if neighbor not in g_score or tentative_g < g_score[neighbor]:
-                    g_score[neighbor] = tentative_g
-                    f = tentative_g + self.heuristic(neighbor, self.goal)
-                    heapq.heappush(open_set, (f, tentative_g, neighbor))
-                    came_from[neighbor] = current
-
-        return []
 
 def get_position(frame):
     blurred = cv2.GaussianBlur(frame, (15, 15), 0)
@@ -170,49 +112,80 @@ def postprocess(outputs, orig_shape, conf_thresh=0.4):
         result.append((boxes[i], confidences[i], class_ids[i]))
     return result
 
-def draw_boxes(frame, results):
-    for (box, score, class_id) in results:
-        x, y, w, h = box
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-        label = f"ID:{class_id} {score:.2f}"
-        cv2.putText(frame, label, (x, y-10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-    return frame
+def draw_boxes_and_center(frame, results):
+    if not results:
+        return frame, None, None
+    box, score, class_id = results[0]
+    x, y, w, h = box
+    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+    label = f"ID:{class_id} {score:.2f}"
+    cv2.putText(frame, label, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+    center_x = x + w // 2
+    center_y = y + h // 2
+    return frame, center_x, center_y
 
 prev_time = time.time()
 
 try:
-    frame = picam2.capture_array()
-    # YOLO: detect starting position of PB
-    input_tensor = preprocess(frame)
+    fframe = picam2.capture_array()
+
+    input_tensor = preprocess(fframe)
     outputs = session.run(None, {'images': input_tensor})
-    results = postprocess(outputs, frame.shape)
-    resized_frame = cv2.resize(frame, (32,32))
-    gray_frame = cv2.imread(np.ndarray(resized_frame), cv2.IMREAD_GRAYSCALE)
-    frame = draw_boxes(frame, results)
+    results = postprocess(outputs, fframe.shape)
 
-    # Astar: find path to the target (target should be determined manually)
+    fframe, pb_start_x, pb_start_y = draw_boxes_and_center(fframe, results)
+
+    gray_img = cv2.cvtColor(fframe, cv2.COLOR_BGR2GRAY)
+    H, W = gray_img.shape[:2]
+    grid = gray_img
+
+    for (box, _, _) in results:
+        x, y, w, h = box
+        grid[y:y+h, x:x+w] = 255
+
+    print(grid)
+    ## in gird, we mask 0 as obstacles (=dots)
     
+    start = (pb_start_y, pb_start_x)
+    goal = (0, grid.shape[1]-1)
+    # Astar: find path to the target (target should be determined manually)
 
-    start_pixel = (100, 150)
-    goal_pixel = (500, 600)
-
-    finder = Pathfinder(gray_frame, start=start_pixel, goal=goal_pixel, threshold=50)
-
+    finder = Pathfinder(grid, start, goal)
     path = finder.get_path()
-    prev_y, prev_x = path[0]
+    print(path)
+    ## after find path, node setting = 0
+    current_node = 0
 
-    for y, x in path[1:]:
-        dx = x - prev_x ## dx = moving step
-        dy = y - prev_y
+    while current_node <= len(path):
+        cal_time = time.time()
 
-
-    while True:
         frame = picam2.capture_array()
+        
+        input_tensor = preprocess(frame)
+        outputs = session.run(None, {'images': input_tensor})
+        results = postprocess(outputs, frame.shape)
+        frame, curr_x, curr_y = draw_boxes_and_center(frame, results)
+        
+        if len(results) == 0:
+            ## not detect PB
+            print("not PB")
+            continue
+
+        target_y, target_x = path[current_node]
 
         # PID: get optimal steps to the target point
+        pid_x.setpoint = target_x
+        pid_y.setpoint = target_y
 
-        pid_position = get_position(results) # get position function only finds the position of ball/PB depending on the RGB values it is not pid position
+        x_output = pid_x.compute(curr_x - target_x)
+        y_output = pid_y.compute(curr_y - target_y)
+        x_steps = int(-x_output)
+        y_steps = int(y_output)
+        platform.tilt(x_steps, y_steps)
+        
+
+
+        # pid_position = get_position(results) # get position function only finds the position of ball/PB depending on the RGB values it is not pid position
         
         # details in control/bal.py and control/balance.py
         # make PB to move following the path
@@ -224,10 +197,11 @@ try:
         # this might need another loop
 
         # Control: moving the motors based on the values from PID
-        x_steps = int(-x_output)
-        y_steps = int(y_output)
+        dist = ((curr_x - target_x)**2 + (curr_y - target_y)**2) ** 0.5
+        if dist < 10:
+            current_node += 1
+            print(f"Reach node {current_node}/{len(path)}")
 
-        platform.tilt(x_steps, y_steps)
 
         # Plot (if needed)
         current_time = time.time()
@@ -237,8 +211,6 @@ try:
         print(f"FPS: {fps:.2f}")
 
         cv2.imshow("ONNX YOLOv5 - PiCam", frame)
-        plot_time = time.time()
-        print(f"plot: {plot_time-cal_time}")
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

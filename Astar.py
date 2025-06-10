@@ -11,7 +11,7 @@ class Pathfinder:
         image: np.ndarray,              # Grayscale image
         start: Node,
         goal: Node,
-        threshold: int = 50             # 픽셀 값이 이보다 작으면 장애물
+        threshold: int = 20            # 픽셀 값이 이보다 작으면 장애물
     ):
         assert len(image.shape) == 2, "입력은 grayscale 이미지여야 합니다."
         self.map_np = (image >= threshold).astype(np.uint8)  # 밝으면 1, 어두우면 0
@@ -21,7 +21,10 @@ class Pathfinder:
         self.goal = goal
 
     def heuristic(self, a: Node, b: Node) -> int:
-        return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
+        if type(a) == np.inf or type(b) == np.inf:
+            return
+        else:
+            return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
 
     def get_neighbors(self, pos: Node) -> List[Node]:
         neighbors = []
@@ -84,13 +87,13 @@ class Pathfinder:
 import cv2
 
 # 예시용 grayscale 이미지 로드
-gray_img = cv2.imread("./mazes/1881481-800175472.png", cv2.IMREAD_GRAYSCALE)
+# gray_img = cv2.imread("./mazes/1881481-800175472.png", cv2.IMREAD_GRAYSCALE)
 
-start_pixel = (100, 150)
-goal_pixel = (500, 600)
+# start_pixel = (100, 150)
+# goal_pixel = (500, 600)
 
-finder = AStarPathfinder(gray_img, start=start_pixel, goal=goal_pixel, threshold=50)
+# finder = AStarPathfinder(gray_img, start=start_pixel, goal=goal_pixel, threshold=50)
 
-path = finder.get_path()
-finder.print_path(path)
+# path = finder.get_path()
+# finder.print_path(path)
 
