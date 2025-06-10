@@ -125,8 +125,8 @@ try:
         if len(results) == 0 or curr_x is None or curr_y is None:
             print("PB not detected. Waiting...")
             cv2.imshow("ONNX YOLOv5 - PiCam", frame)
-            steps_x = int(last_steps[0] * 0.5)
-            steps_y = int(last_steps[1] * 0.5)
+            steps_x = int(last_steps[0] * -0.5)
+            steps_y = int(last_steps[1] * -0.5)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
             continue
