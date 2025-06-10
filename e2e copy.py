@@ -14,16 +14,23 @@ os.environ["OMP_NUM_THREADS"] = "4"
 # ONNX load
 model_path='/home/pi/ESD/EmbeddedSystemDesign/custom_model/augmented/exp/weights/best_fp16.onnx'
 session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+session_options = ort.SessionOptions()
+session_options.intra_op_num_threads = 4
+session_options.inter_op_num_threads = 1
+session_options.enable_mem_pattern = False
+session_options.enable_cpu_mem_arena = False
+
+cv2.setNumThreads(4)
 
 # parameters
 model_size = 320
 resolution = 640
-destination = [30, 30]
-Kp, Ki, Kd = [0.1, 0.0, 0.35]
+destination = [0, 0]
+Kp, Ki, Kd = [0.1, 0.001, 0.37]
 # Kp, Ki, Kd = [0.09, 0.0, 0.11]
 # Kp, Ki, Kd = [0.09, 0.0, 0.11]
 # Kp, Ki, Kd = [0.033, 0.0, 0.08]
-max_rotation = 1000
+max_rotation = 500
 toggle_threshold = 10
 
 pid_x = PID(kp=Kp, ki=Ki, kd=Kd)
@@ -46,29 +53,6 @@ picam2.preview_configuration.align()
 picam2.configure("preview")
 picam2.start()
 
-def get_position(frame):
-    blurred = cv2.GaussianBlur(frame, (15, 15), 0)
-
-    lower_rgb = np.array([0, 50, 100])
-    upper_rgb = np.array([80, 150, 255])
-
-    mask = cv2.inRange(blurred, lower_rgb, upper_rgb)
-
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    for cnt in contours:
-        area = cv2.contourArea(cnt)
-        if area > 300:
-            (x, y), radius = cv2.minEnclosingCircle(cnt)
-            circle_area = np.pi * radius * radius
-            circularity = area / circle_area
-            if circularity > 0.45:
-                center = (int(x), int(y))
-                radius = int(radius)
-                return center, radius
-
-    return None
-
 def preprocess(img):
     img_resized = cv2.resize(img, (model_size, model_size))
     img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
@@ -76,7 +60,7 @@ def preprocess(img):
     
     return np.expand_dims(img_tensor, axis=0)  # (1, 3, 480, 480)
 
-def postprocess(outputs, orig_shape, conf_thresh=0.4):
+def postprocess(outputs, orig_shape, conf_thresh=0.35):
     boxes = []
     confidences = []
     class_ids = []
@@ -127,90 +111,78 @@ def draw_boxes_and_center(frame, results):
 prev_time = time.time()
 
 try:
-    fframe = picam2.capture_array()
-
-    input_tensor = preprocess(fframe)
-    outputs = session.run(None, {'images': input_tensor})
-    results = postprocess(outputs, fframe.shape)
-
-    fframe, pb_start_x, pb_start_y = draw_boxes_and_center(fframe, results)
-
-    gray_img = cv2.cvtColor(fframe, cv2.COLOR_BGR2GRAY)
-    H, W = gray_img.shape[:2]
-    grid = gray_img
-
-    for (box, _, _) in results:
-        x, y, w, h = box
-        grid[y:y+h, x:x+w] = 255
-
-    print(grid)
-    ## in gird, we mask 0 as obstacles (=dots)
-    
-    if pb_start_x is not None and pb_start_y is not None:
-        start = (pb_start_y, pb_start_x)
-    goal = (0, grid.shape[1]-1)
-    # Astar: find path to the target (target should be determined manually)
-
-    finder = Pathfinder(grid, start, goal)
-    path = finder.get_path()
-    print(path)
-    ## after find path, node setting = 0
+    path = None
     current_node = 0
+    last_steps = [0, 0]
 
-    while current_node <= len(path):
-        cal_time = time.time()
-
+    while True:
         frame = picam2.capture_array()
-        
         input_tensor = preprocess(frame)
         outputs = session.run(None, {'images': input_tensor})
         results = postprocess(outputs, frame.shape)
         frame, curr_x, curr_y = draw_boxes_and_center(frame, results)
-        
-        if len(results) == 0:
-            ## not detect PB
-            print("not PB")
+
+        if len(results) == 0 or curr_x is None or curr_y is None:
+            print("PB not detected. Waiting...")
+            cv2.imshow("ONNX YOLOv5 - PiCam", frame)
+            steps_x = int(last_steps[0] * 0.5)
+            steps_y = int(last_steps[1] * 0.5)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
             continue
 
-        target_y, target_x = path[current_node]
+        if path is None:
+            # PB 위치 기반 A* 경로 탐색
+            gray_img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            H, W = gray_img.shape[:2]
+            grid = gray_img.copy()
 
-        # PID: get optimal steps to the target point
-        pid_x.setpoint = target_x
-        pid_y.setpoint = target_y
+            for (box, _, _) in results:
+                x, y, w, h = box
+                grid[y:y+h, x:x+w] = 255
 
-        x_output = pid_x.compute(curr_x - target_x)
-        y_output = pid_y.compute(curr_y - target_y)
-        x_steps = int(-x_output)
-        y_steps = int(y_output)
-        platform.tilt(x_steps, y_steps)
-        
+            start = (curr_y, curr_x)
+            goal = (0, grid.shape[1]-1)
 
+            finder = Pathfinder(grid, start, goal)
+            path = finder.get_path()
+            current_node = 0
 
-        # pid_position = get_position(results) # get position function only finds the position of ball/PB depending on the RGB values it is not pid position
-        
-        # details in control/bal.py and control/balance.py
-        # make PB to move following the path
-        # 
-        # move path[0] -> path[1] 
-        # if done, move path[1] -> path [2]
-        # if done, move path[2] -> path [3]
-        # ... and so on
-        # this might need another loop
+            if not path:
+                print("No path found. Waiting...")
+                path = None
+                continue
 
-        # Control: moving the motors based on the values from PID
-        dist = ((curr_x - target_x)**2 + (curr_y - target_y)**2) ** 0.5
-        if dist < 10:
-            current_node += 1
-            print(f"Reach node {current_node}/{len(path)}")
+            print(f"Path found: {path}")
 
+        # 경로 따라 이동
+        if current_node < len(path):
+            if path[current_node] is not None:
+                target_y, target_x = path[current_node]
 
-        # Plot (if needed)
+                pid_x.setpoint = target_x
+                pid_y.setpoint = target_y
+
+                x_output = pid_x.compute(curr_x - target_x)
+                y_output = pid_y.compute(curr_y - target_y)
+
+                x_steps = int(-x_output)
+                y_steps = int(y_output)
+
+                platform.tilt(x_steps, y_steps)
+
+                dist = ((curr_x - target_x)**2 + (curr_y - target_y)**2) ** 0.5
+                if dist < 3:
+                    current_node += 1
+                    print(f"Reached node {current_node}/{len(path)}")
+
+                
+
         current_time = time.time()
         fps = 1.0 / (current_time - prev_time)
         prev_time = current_time
 
         print(f"FPS: {fps:.2f}")
-
         cv2.imshow("ONNX YOLOv5 - PiCam", frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):

@@ -20,6 +20,8 @@ class PID:
             self.integral = 0
 
         self.integral += error
+        if self.integral != 0:
+            self.integral = max(abs(self.integral), 2000) * (abs(self.integral) // self.integral)
         self.derivative = (error - self.last_error)//self.dt
 
         output = self.kp*error + self.ki*self.integral + self.kd*self.derivative

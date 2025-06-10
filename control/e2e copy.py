@@ -20,15 +20,17 @@ session_options.inter_op_num_threads = 1
 session_options.enable_mem_pattern = False
 session_options.enable_cpu_mem_arena = False
 
+cv2.setNumThreads(4)
+
 # parameters
 model_size = 320
 resolution = 640
 destination = [0, 0]
 
-Kp, Ki, Kd = [0.09, 0.0, 0.3]
+Kp, Ki, Kd = [0.1, 0.0, 0.35]
 # Kp, Ki, Kd = [0.09, 0.0, 0.11]
 # Kp, Ki, Kd = [0.033, 0.0, 0.08]
-max_rotation = 1000
+max_rotation = 125
 toggle_threshold = 10
 
 pid_x = PID(kp=Kp, ki=Ki, kd=Kd)
