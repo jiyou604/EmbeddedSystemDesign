@@ -116,3 +116,13 @@ pins = [17, 18, 27, 22]
 motor1 = Stepper.motor(pins)
 motor1.rotate(<traget_step>)# Rotate motor to adjust platform slope
 ```
+## Vidoes
+
+### Balancing table-tennis ball with pid auto control
+
+![KakaoTalk_20250611_135006081_01](https://github.com/user-attachments/assets/86316fde-5dbb-474d-bd1b-be625539bcd6)
+
+
+### Moving PB to the conter of the platform
+
+![KakaoTalk_20250611_135006081](https://github.com/user-attachments/assets/f93c5d3b-e9aa-4438-9544-75ef8558f48b)
