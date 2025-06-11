@@ -122,6 +122,7 @@ motor1.rotate(<traget_step>)# Rotate motor to adjust platform slope
 
 ![KakaoTalk_20250611_135006081_01](https://github.com/user-attachments/assets/86316fde-5dbb-474d-bd1b-be625539bcd6)
 
+---
 
 ### Moving PB to the conter of the platform
 
